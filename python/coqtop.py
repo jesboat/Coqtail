@@ -35,6 +35,7 @@ from xmlInterface import (
     Goals,
     Ok,
     Result,
+    Status,
     XMLInterface,
     XMLInterfaceBase,
     partition_warnings,
@@ -287,6 +288,23 @@ class Coqtop:
             isinstance(response, Ok),
             response.msg,
             None if isinstance(response, Ok) else response.loc,
+            err,
+        )
+
+    def status(
+        self,
+        timeout: Optional[int] = None,
+    ) -> Tuple[bool, str, Status, str]:
+        """Get the current status (active/pending proofs)"""
+        assert self.xml is not None
+        self.logger.debug("status")
+
+        response, err = self.call(self.xml.status(), timeout=timeout)
+
+        return (
+            isinstance(response, Ok),
+            response.msg,
+            response.val if isinstance(response, Ok) else None,
             err,
         )
 

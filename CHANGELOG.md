@@ -4,6 +4,8 @@
 
 ### Added
 - Add a hook for more flexible keybindings
+- Display current proof name, pending proof names, and module name
+  in the goals panel
 
 ### Fixed
 - Fix rendering of goals panel when no proof is active in Coq >= 8.16

@@ -35,7 +35,7 @@ from typing import (
 )
 
 import coqtop as CT
-from xmlInterface import Goals, PPTag, TaggedToken
+from xmlInterface import Goals, PPTag, TaggedToken, Status
 
 T = TypeVar("T")
 Highlight = NamedTuple(
@@ -559,6 +559,36 @@ class Coqtail:
         bmatch = re.search(r'(?:bullet |unfocusing with ")([-+*}]+)', show)
         return bmatch.group(1) if bmatch is not None else None
 
+    def _refresh_goals_and_info(
+        self,
+        opts: VimOptions,
+    ) -> None:
+        """Determines what text should be in the auxiliary panels"""
+
+        newstatus, statusmsgs = self.get_status(opts=opts)
+        assert newstatus or statusmsgs  # (or both)
+
+        if statusmsgs != "":
+            self.set_info(statusmsgs, reset=False)
+
+        if newstatus is None:
+            self.set_goal((["Failed to load proof status!"], []))
+            return
+
+        if newstatus.proofname is None:
+            self.set_goal((self.pp_status(newstatus), []))
+            return
+
+        newgoals, newinfo = self.get_goals(opts=opts)
+        if newinfo != "":
+            self.set_info(newinfo, reset=False)
+
+        if newgoals is None:
+            self.set_goal((["Failed to load goals!"], []))
+            return
+
+        self.set_goal(self.pp_goals(newgoals, newstatus, opts=opts))
+
     # Goals and Infos #
     def refresh(
         self,
@@ -569,14 +599,18 @@ class Coqtail:
     ) -> None:
         """Refresh the auxiliary panels."""
         if goals:
-            newgoals, newinfo = self.get_goals(opts=opts)
-            if newinfo != "":
-                self.set_info(newinfo, reset=False)
-            if newgoals is not None:
-                self.set_goal(self.pp_goals(newgoals, opts=opts))
-            else:
-                self.set_goal(clear=True)
+            self._refresh_goals_and_info(opts)
         self.handler.refresh(goals=goals, force=force, scroll=scroll)
+
+    def get_status(self, opts: VimOptions) -> Tuple[Optional[Any], str]:
+        """Get the current status (active/pending proofs)"""
+        try:
+            _, msg, status, stderr = self.coqtop.status(timeout=opts["timeout"])
+            self.print_stderr(stderr)
+            assert (status if ok else msg)
+            return status, msg
+        except CT.CoqtopError as e:
+            return None, str(e)
 
     def get_goals(self, opts: VimOptions) -> Tuple[Optional[Goals], str]:
         """Get the current goals."""
@@ -587,9 +621,38 @@ class Coqtail:
         except CT.CoqtopError as e:
             return None, str(e)
 
+    def pp_status(
+        self,
+        status: Status,
+    ) -> List[str]:
+        """Pretty-print a Status"""
+
+        lines = []
+
+        if status.proofname is None:
+            lines += ["No proof in progress"]
+        else:
+            lines += [f"Current proof: {status.proofname}"]
+
+        if len(status.allproofs) > 1:
+            lines += ["", "Other in-progress proofs:"]
+            lines += [
+                f" {name}" for name in status.allproofs
+                if name != status.proofname
+            ]
+
+        lines += [
+            "",
+            f"Current module/section: {'.'.join(status.path)}.",
+        ]
+
+        return lines
+
+
     def pp_goals(
         self,
         goals: Goals,
+        status: Status,
         opts: VimOptions,
     ) -> Tuple[List[str], List[Highlight]]:
         """Pretty print the goals."""
@@ -659,18 +722,18 @@ class Coqtail:
             lines += ls
             highlights += hls
 
+        lines += ["", ""]
+
+        lines += self.pp_status(status)
+
         return lines, highlights
 
     def set_goal(
         self,
-        msg: Optional[Tuple[List[str], List[Highlight]]] = None,
-        clear: bool = False,
+        msg: Tuple[List[str], List[Highlight]],
     ) -> None:
         """Update the goal message."""
-        if msg is not None:
-            self.goal_msg, self.goal_hls = msg
-        if clear or "".join(self.goal_msg) == "":
-            self.goal_msg, self.goal_hls = ["No goals."], []
+        self.goal_msg, self.goal_hls = msg
 
     def set_info(
         self,

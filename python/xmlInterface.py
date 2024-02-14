@@ -51,6 +51,14 @@ Goals = NamedTuple(
         ("given_up", List[Goal]),
     ],
 )
+Status = NamedTuple(
+    "Status",
+    [
+        ("path", List[str]),
+        ("proofname", Optional[str]),
+        ("allproofs", List[str]),
+    ],
+)
 
 
 class GoalMode(Enum):
@@ -811,6 +819,7 @@ class XMLInterface84(XMLInterfaceBase):
                 "Query": self._standardize_query,
                 "Goal": self._standardize_goal,
                 "GetOptions": self._standardize_get_options,
+                "Status": self._standardize_status,
             }
         )
 
@@ -1024,6 +1033,19 @@ class XMLInterface84(XMLInterfaceBase):
         """
         return ("Status", self._make_call(encoding, "status", children=()))
 
+    def _standardize_status(self, res: Result) -> Result:
+        """Standardize the info returned by 'Status'.
+        Extract 'path', 'proofname', and 'allproofs' from the CoqStatus;
+        ignore the useless-to-us 'statenum' and 'proofnum'.
+        """
+        if isinstance(res, Ok):
+            res.val = Status(
+                res.val.path,
+                self.unwrap_coq_option(res.val.proofname),
+                res.val.allproofs,
+            )
+        return res
+
     def get_options(self, encoding: str = "utf-8") -> Tuple[str, Optional[bytes]]:
         """Create an XML string to check the state of Coqtop's options.
         Args:
@@ -1175,6 +1197,7 @@ class XMLInterface85(XMLInterfaceBase):
                 "Edit_at": self._standardize_edit_at,
                 "Goal": self._standardize_goal,
                 "GetOptions": self._standardize_get_options,
+                "Status": self._standardize_status,
             }
         )
 
@@ -1409,6 +1432,19 @@ class XMLInterface85(XMLInterfaceBase):
           force: bool - Force all pending evaluations
         """
         return ("Status", self._make_call(encoding, "Status", children=True))
+
+    def _standardize_status(self, res: Result) -> Result:
+        """Standardize the info returned by 'Status'.
+        Extract 'path', 'proofname', and 'allproofs' from the CoqStatus;
+        ignore the useless-to-us 'proofnum'.
+        """
+        if isinstance(res, Ok):
+            res.val = Status(
+                res.val.path,
+                self.unwrap_coq_option(res.val.proofname),
+                res.val.allproofs,
+            )
+        return res
 
     def get_options(self, encoding: str = "utf-8") -> Tuple[str, Optional[bytes]]:
         """Create an XML string to check the state of Coqtop's options.
