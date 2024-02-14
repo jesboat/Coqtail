@@ -2,6 +2,9 @@
 
 ## Unreleased ([main])
 
+### Added
+- Add a hook for more flexible keybindings
+
 ### Fixed
 - Fix rendering of goals panel when no proof is active in Coq >= 8.16
 

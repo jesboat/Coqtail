@@ -99,11 +99,20 @@ The mappings above are set by default, but you can disable them all and define
 your own by setting `g:coqtail_nomap = 1` in your `.vimrc`.
 Some of the commands, such as `CoqNext`, also have insert-mode mappings by
 default, which can be disabled with `g:coqtail_noimap`.
+
 Alternatively, you can keep the defaults but remap specific commands.
 For example, use `map <leader>ci <Plug>CoqInterrupt` to avoid hijacking `CTRL-C`.
+If a mapping for a command already exists when Coqtail is loaded, the default
+mapping for that command won't be defined.
+
 The `<leader>c` prefix may be inconvenient depending on your `mapleader` setting.
 In that case you can set a custom prefix with `g:coqtail_map_prefix` (or
 `g:coqtail_imap_prefix` for just insert-mode mappings).
+
+Finally, after defining the standard keybindings, Coqtail will call a vim
+function named `CoqtailHookDefineMappings` (if one is defined). This makes it
+easy to add additional mappings without removing the standard mappings, and
+to add mappings which are only active in Coqtail-managed buffers.
 
 ### Coq Executable
 
